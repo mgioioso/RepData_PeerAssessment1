@@ -15,11 +15,10 @@ library(dplyr)
 
 ```r
 df <- read.csv("activity.csv")
-#df <- mutate(df, date=as.Date(date, format="%Y-%m-%d"));
-dfclean <- df %>% na.omit %>% mutate(date=as.Date(date, format="%Y-%m-%d"))
-daily <- dfclean %>% group_by(date)
-byInterval <- dfclean %>% group_by(interval)
-#daily <- group_by(df, df$date)
+df <- mutate(df, date=as.Date(date, format="%Y-%m-%d"));
+dfclean <- na.omit(df)
+daily <- group_by(dfclean, date)
+byInterval <- group_by(dfclean, interval)
 ```
 
 
@@ -42,7 +41,7 @@ qplot(total_steps, data=totals, main="Histogram of daily total steps");
 
 ![](PA1_template_files/figure-html/unnamed-chunk-4-1.png) 
 Measuring by eye, it appears that this person would most often take between
-10,000 and 15,000 steps in a day, since those are the value that contain most
+10,000 and 15,000 steps in a day, since those are the values that contain most
 of the histogram.
 
 
@@ -84,12 +83,9 @@ The 5-minute interval that, on average across all the days in the dataset,
 contains the maximum number of steps can be found more exactly:
 
 ```r
-totInts$interval[which.max(totInts$mean_steps)]
+intervalWithMaxActivity <- totInts$interval[which.max(totInts$mean_steps)]
 ```
-
-```
-## [1] 835
-```
+This is consistent with my estimate above.
 
 ## Imputing missing values
 Next let's check on what kind of impact the NAs are having on our results.
@@ -135,8 +131,8 @@ totInts$intSteps <- sapply(totInts$mean_steps, round)
 naInds <- is.na(df$steps)
 
 intInds <- match(df[naInds,]$interval, totInts$interval)
-dfReplace <- df %>% mutate(filled_steps=steps)
-dfReplace$filled_steps[naInds] = totInts$interval[intInds]
+dfReplace <- mutate(df, filled_steps=steps)
+dfReplace$filled_steps[naInds] = totInts$mean_steps[intInds]
 sum(is.na(dfReplace$filled_steps))
 ```
 
@@ -145,10 +141,10 @@ sum(is.na(dfReplace$filled_steps))
 ```
 
 Having filled in the NAs with averages, now let's aggregate by date, then plot
-the daily totals.
+the daily totals. The graph shows that the distribution is not very different
+with the invalid data filled in with means.
 
 ```r
-dfReplace <- dfReplace %>% mutate(date=as.Date(date, format="%Y-%m-%d")) 
 dailyReplace <- dfReplace %>% group_by(date)
 totalsReplace <- dailyReplace %>% summarize(total_steps=sum(filled_steps))
 qplot(total_steps, data=totalsReplace, main="Histogram of daily total steps, 
@@ -161,15 +157,16 @@ qplot(total_steps, data=totalsReplace, main="Histogram of daily total steps,
 
 ![](PA1_template_files/figure-html/unnamed-chunk-10-1.png) 
 
-Next, let's find the mean and median of the total number of daily steps. Let's 
-see what the average daily total is for this person.
+Next, let's find the mean and median of the total number of daily steps. The mean
+and median are very similar to before, which is a good thing. We wouldn't want
+our filling of invalid data to have much influence on the population statistics.
 
 ```r
 mean(totalsReplace$total_steps)
 ```
 
 ```
-## [1] 53828.98
+## [1] 10766.19
 ```
 
 ```r
@@ -177,11 +174,19 @@ median(totalsReplace$total_steps)
 ```
 
 ```
-## [1] 11458
+## [1] 10766.19
 ```
 
 ## Are there differences in activity patterns between weekdays and weekends?
-
+By making a factor variable for whether the date is a weekday or weekend, we 
+can compare the person's mean behavior in both situations. After grouping by
+weekend/weekday as well as by interval, and generating another time series of
+his/her behavior throughout the day, we see that on the weekend, there is much 
+less activity before the 750th minute of the day. The peak around minute 800 is
+still there but is much lower (around 150 steps vs. over 200), and there is more
+activity in the middle of the day than in the weekday case. This might indicate,
+for example, that this person has a desk job, but is fairly active during the
+weekend.
 
 ```r
 day = weekdays(dfReplace$date)
